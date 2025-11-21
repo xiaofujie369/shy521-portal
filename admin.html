@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>可云导航 · 后台管理</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body class="app app-light">
+<div class="app-bg"></div>
+
+<header class="app-header">
+  <div class="brand">
+    <div class="brand-icon"></div>
+    <div class="brand-text">
+      <div class="brand-title">可云导航 · 管理后台</div>
+      <div class="brand-sub">通过 JSON 编辑你的导航配置。</div>
+    </div>
+  </div>
+
+  <div class="header-actions">
+    <a href="/" class="btn btn-ghost">返回首页</a>
+  </div>
+</header>
+
+<main class="app-main admin-main">
+  <section class="card admin-card">
+    <h2>鉴权</h2>
+    <p class="hint">
+      请填写在 Cloudflare 中配置的 <code>ADMIN_KEY</code>（仅你自己知道）。
+    </p>
+    <div class="form-row">
+      <label for="adminKey">后台密钥</label>
+      <input id="adminKey" type="password" placeholder="输入后台密钥…" autocomplete="off" />
+    </div>
+  </section>
+
+  <section class="card admin-card">
+    <div class="admin-toolbar">
+      <h2>导航配置（JSON）</h2>
+      <div class="admin-buttons">
+        <button id="loadBtn" class="btn btn-ghost">重新加载</button>
+        <button id="formatBtn" class="btn btn-ghost">格式化</button>
+        <button id="saveBtn" class="btn btn-primary">保存配置</button>
+      </div>
+    </div>
+    <p class="hint">
+      配置为 <code>Array&lt;Section&gt;</code>，结构示例见默认内容：<br/>
+      <code>title, subtitle, links[].{ title, url, icon, desc, tags, badge }</code>
+    </p>
+    <textarea id="configText" spellcheck="false"></textarea>
+    <div id="status" class="status-text"></div>
+  </section>
+</main>
+
+<footer class="app-footer">
+  <div>仅站长可访问 · 请勿泄露后台地址和密钥</div>
+</footer>
+
+<script>
+  const adminKeyInput = document.getElementById('adminKey');
+  const configText = document.getElementById('configText');
+  const loadBtn = document.getElementById('loadBtn');
+  const saveBtn = document.getElementById('saveBtn');
+  const formatBtn = document.getElementById('formatBtn');
+  const statusEl = document.getElementById('status');
+
+  function setStatus(msg, type = 'info') {
+    statusEl.textContent = msg;
+    statusEl.className = 'status-text ' + (type === 'error' ? 'status-error' : '');
+  }
+
+  async function loadConfig() {
+    setStatus('正在加载配置…');
+    try {
+      const res = await fetch('/api/nav');
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      const json = await res.json();
+      configText.value = JSON.stringify(json, null, 2);
+      setStatus('加载完成。');
+    } catch (e) {
+      console.error(e);
+      setStatus('加载失败：' + e.message, 'error');
+    }
+  }
+
+  async function saveConfig() {
+    const key = adminKeyInput.value.trim();
+    if (!key) {
+      setStatus('请先输入后台密钥。', 'error');
+      return;
+    }
+    const text = configText.value;
+    let parsed;
+    try {
+      parsed = JSON.parse(text);
+      if (!Array.isArray(parsed)) {
+        throw new Error('根节点必须是数组（Array）。');
+      }
+    } catch (e) {
+      setStatus('JSON 解析失败：' + e.message, 'error');
+      return;
+    }
+
+    setStatus('正在保存配置…');
+    try {
+      const res = await fetch('/api/nav', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Admin-Key': key
+        },
+        body: JSON.stringify(parsed)
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok || !data.ok) {
+        throw new Error(data.error || '保存失败（HTTP ' + res.status + '）');
+      }
+      setStatus('保存成功！请刷新首页查看效果。');
+    } catch (e) {
+      console.error(e);
+      setStatus('保存失败：' + e.message, 'error');
+    }
+  }
+
+  function formatConfig() {
+    try {
+      const obj = JSON.parse(configText.value);
+      configText.value = JSON.stringify(obj, null, 2);
+      setStatus('格式化完成。');
+    } catch (e) {
+      setStatus('格式化失败：当前内容不是合法 JSON。', 'error');
+    }
+  }
+
+  loadBtn.addEventListener('click', loadConfig);
+  saveBtn.addEventListener('click', saveConfig);
+  formatBtn.addEventListener('click', formatConfig);
+
+  // 初次进入自动加载一次
+  loadConfig();
+</script>
+</body>
+</html>
