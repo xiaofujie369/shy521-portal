@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport"
+        content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+  <title>我的导航 · KEYUN</title>
+  <link rel="stylesheet" href="./style.css" />
+</head>
+<body class="app app-light">
+<div class="app-bg"></div>
+
+<header class="app-header">
+  <div class="brand">
+    <div class="brand-icon"></div>
+    <div class="brand-text">
+      <div class="brand-title">可云 · Personal Hub</div>
+      <div class="brand-sub">快速进入你最常用的世界。</div>
+    </div>
+  </div>
+
+  <div class="header-actions">
+    <button id="themeToggle" class="btn btn-ghost">浅色 / 深色</button>
+    <a href="/admin.html" class="btn btn-primary">管理后台</a>
+  </div>
+</header>
+
+<main class="app-main">
+  <section class="search-section">
+    <input id="searchInput" type="search" placeholder="搜索站点或关键字…" autocomplete="off" />
+  </section>
+
+  <section id="navContainer" class="section-list">
+    <!-- JS 动态渲染 -->
+  </section>
+
+  <section id="loading" class="status-text">正在加载导航配置…</section>
+  <section id="error" class="status-text status-error" hidden>加载失败，请稍后重试。</section>
+</main>
+
+<footer class="app-footer">
+  <div>© <span id="year"></span> 可云导航 · 构建在 Cloudflare Pages & Workers</div>
+</footer>
+
+<script>
+  const navContainer = document.getElementById('navContainer');
+  const searchInput = document.getElementById('searchInput');
+  const loadingEl = document.getElementById('loading');
+  const errorEl = document.getElementById('error');
+  const yearEl = document.getElementById('year');
+  const themeToggle = document.getElementById('themeToggle');
+
+  yearEl.textContent = new Date().getFullYear();
+
+  // 主题切换
+  (function initTheme() {
+    const saved = localStorage.getItem('keyun-theme');
+    if (saved === 'dark') {
+      document.body.classList.add('app-dark');
+      document.body.classList.remove('app-light');
+    }
+  })();
+
+  themeToggle.addEventListener('click', () => {
+    const isDark = document.body.classList.toggle('app-dark');
+    document.body.classList.toggle('app-light', !isDark);
+    localStorage.setItem('keyun-theme', isDark ? 'dark' : 'light');
+  });
+
+  let navData = [];
+
+  async function loadNav() {
+    try {
+      const res = await fetch('/api/nav');
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      navData = await res.json();
+      renderNav(navData);
+      loadingEl.hidden = true;
+    } catch (e) {
+      console.error(e);
+      loadingEl.hidden = true;
+      errorEl.hidden = false;
+    }
+  }
+
+  function renderNav(data) {
+    navContainer.innerHTML = '';
+    if (!Array.isArray(data) || data.length === 0) {
+      navContainer.innerHTML = '<div class="status-text">暂无导航数据，请在后台添加。</div>';
+      return;
+    }
+
+    const keyword = searchInput.value.trim().toLowerCase();
+
+    data.forEach(section => {
+      const filteredLinks = (section.links || []).filter(link => {
+        if (!keyword) return true;
+        const text = (link.title || '') + ' ' + (link.desc || '') + ' ' + (link.tags || '');
+        return text.toLowerCase().includes(keyword);
+      });
+
+      if (filteredLinks.length === 0) return;
+
+      const secEl = document.createElement('section');
+      secEl.className = 'nav-section';
+
+      const headerEl = document.createElement('div');
+      headerEl.className = 'nav-section-header';
+
+      const titleWrap = document.createElement('div');
+      const titleEl = document.createElement('h2');
+      titleEl.className = 'nav-section-title';
+      titleEl.textContent = section.title || '未命名分组';
+
+      const subtitleEl = document.createElement('p');
+      subtitleEl.className = 'nav-section-subtitle';
+      subtitleEl.textContent = section.subtitle || '';
+
+      titleWrap.appendChild(titleEl);
+      if (section.subtitle) titleWrap.appendChild(subtitleEl);
+
+      headerEl.appendChild(titleWrap);
+      secEl.appendChild(headerEl);
+
+      const gridEl = document.createElement('div');
+      gridEl.className = 'card-grid';
+
+      filteredLinks.forEach(link => {
+        const card = document.createElement('a');
+        card.className = 'nav-card';
+        card.href = link.url || '#';
+        card.target = '_blank';
+        card.rel = 'noopener noreferrer';
+
+        const icon = document.createElement('div');
+        icon.className = 'nav-card-icon';
+        icon.textContent = link.icon || '⌘';
+
+        const content = document.createElement('div');
+        content.className = 'nav-card-content';
+
+        const titleRow = document.createElement('div');
+        titleRow.className = 'nav-card-title-row';
+
+        const title = document.createElement('div');
+        title.className = 'nav-card-title';
+        title.textContent = link.title || '未命名站点';
+
+        const badge = document.createElement('div');
+        badge.className = 'nav-card-badge';
+        badge.textContent = link.badge || '';
+
+        titleRow.appendChild(title);
+        if (link.badge) titleRow.appendChild(badge);
+
+        const desc = document.createElement('div');
+        desc.className = 'nav-card-desc';
+        desc.textContent = link.desc || '';
+
+        const meta = document.createElement('div');
+        meta.className = 'nav-card-meta';
+        meta.textContent = link.tags || '';
+
+        content.appendChild(titleRow);
+        if (link.desc) content.appendChild(desc);
+        if (link.tags) content.appendChild(meta);
+
+        card.appendChild(icon);
+        card.appendChild(content);
+
+        gridEl.appendChild(card);
+      });
+
+      secEl.appendChild(gridEl);
+      navContainer.appendChild(secEl);
+    });
+  }
+
+  searchInput.addEventListener('input', () => {
+    renderNav(navData);
+  });
+
+  loadNav();
+</script>
+</body>
+</html>
