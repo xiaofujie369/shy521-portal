@@ -15,7 +15,7 @@
     <div class="brand-icon"></div>
     <div class="brand-text">
       <div class="brand-title">可云导航 · 管理后台</div>
-      <div class="brand-sub">通过 JSON 编辑你的导航配置。</div>
+      <div class="brand-sub">通过可视化表单或 JSON 编辑你的导航。</div>
     </div>
   </div>
 
@@ -25,6 +25,7 @@
 </header>
 
 <main class="app-main admin-main">
+  <!-- 鉴权 -->
   <section class="card admin-card">
     <h2>鉴权</h2>
     <p class="hint">
@@ -36,21 +37,73 @@
     </div>
   </section>
 
+  <!-- 可视化编辑区 -->
   <section class="card admin-card">
     <div class="admin-toolbar">
-      <h2>导航配置（JSON）</h2>
+      <h2>可视化编辑（推荐）</h2>
       <div class="admin-buttons">
-        <button id="loadBtn" class="btn btn-ghost">重新加载</button>
-        <button id="formatBtn" class="btn btn-ghost">格式化</button>
-        <button id="saveBtn" class="btn btn-primary">保存配置</button>
+        <button id="reloadBtn" class="btn btn-ghost">从服务器重新加载</button>
+        <button id="saveVisualBtn" class="btn btn-primary">保存配置</button>
       </div>
     </div>
     <p class="hint">
-      配置为 <code>Array&lt;Section&gt;</code>，结构示例见默认内容：<br/>
+      一般情况下你只需要在这里添加“分组名称 + 网站名称 + 网站地址”，高级用户可以使用下方 JSON 模式。
+    </p>
+
+    <div class="visual-editor">
+      <div class="visual-form">
+        <div class="form-row">
+          <label for="sectionName">分组名称</label>
+          <input id="sectionName" type="text" placeholder="例如：常用入口 / 开发工具" />
+        </div>
+        <div class="form-row">
+          <label for="siteName">网站名称</label>
+          <input id="siteName" type="text" placeholder="例如：可云加速 / Google" />
+        </div>
+        <div class="form-row">
+          <label for="siteUrl">网站地址</label>
+          <input id="siteUrl" type="url" placeholder="例如：https://ss.shy521.com" />
+        </div>
+        <div class="form-row">
+          <label for="siteDesc">备注说明（可选）</label>
+          <input id="siteDesc" type="text" placeholder="例如：一站式加速平台（可留空）" />
+        </div>
+        <div class="form-row">
+          <label for="siteIcon">图标（可选，默认自动）</label>
+          <input id="siteIcon" type="text" placeholder="例如：☁️ / 🔧 / 🎵 等，也可留空" />
+        </div>
+        <button id="addLinkBtn" class="btn btn-ghost" type="button">添加到列表</button>
+      </div>
+
+      <div class="visual-list">
+        <div class="visual-list-header">
+          <span>当前导航结构</span>
+          <small>（点击垃圾桶可删除某个站点）</small>
+        </div>
+        <div id="visualListBody" class="visual-list-body">
+          <!-- JS 渲染分组 + 链接列表 -->
+        </div>
+      </div>
+    </div>
+
+    <div id="visualStatus" class="status-text"></div>
+  </section>
+
+  <!-- JSON 高级编辑区 -->
+  <section class="card admin-card">
+    <div class="admin-toolbar">
+      <h2>高级模式 · JSON 配置</h2>
+      <div class="admin-buttons">
+        <button id="formatBtn" class="btn btn-ghost">格式化 JSON</button>
+      </div>
+    </div>
+    <p class="hint">
+      下方内容会和上面的可视化编辑保持同步。仅在你熟悉 JSON 时再手动修改。
+      结构为 <code>Array&lt;Section&gt;</code>：<br/>
       <code>title, subtitle, links[].{ title, url, icon, desc, tags, badge }</code>
     </p>
     <textarea id="configText" spellcheck="false"></textarea>
-    <div id="status" class="status-text"></div>
+    <div id="jsonStatus" class="status-text"></div>
   </section>
 </main>
 
@@ -60,50 +113,241 @@
 
 <script>
   const adminKeyInput = document.getElementById('adminKey');
-  const configText = document.getElementById('configText');
-  const loadBtn = document.getElementById('loadBtn');
-  const saveBtn = document.getElementById('saveBtn');
-  const formatBtn = document.getElementById('formatBtn');
-  const statusEl = document.getElementById('status');
 
-  function setStatus(msg, type = 'info') {
-    statusEl.textContent = msg;
-    statusEl.className = 'status-text ' + (type === 'error' ? 'status-error' : '');
+  const reloadBtn = document.getElementById('reloadBtn');
+  const saveVisualBtn = document.getElementById('saveVisualBtn');
+  const addLinkBtn = document.getElementById('addLinkBtn');
+
+  const sectionNameInput = document.getElementById('sectionName');
+  const siteNameInput = document.getElementById('siteName');
+  const siteUrlInput = document.getElementById('siteUrl');
+  const siteDescInput = document.getElementById('siteDesc');
+  const siteIconInput = document.getElementById('siteIcon');
+
+  const visualListBody = document.getElementById('visualListBody');
+  const visualStatus = document.getElementById('visualStatus');
+
+  const configText = document.getElementById('configText');
+  const formatBtn = document.getElementById('formatBtn');
+  const jsonStatus = document.getElementById('jsonStatus');
+
+  let navData = []; // 内存中的导航结构
+
+  function setVisualStatus(msg, type = 'info') {
+    visualStatus.textContent = msg;
+    visualStatus.className = 'status-text ' + (type === 'error' ? 'status-error' : '');
   }
 
-  async function loadConfig() {
-    setStatus('正在加载配置…');
+  function setJsonStatus(msg, type = 'info') {
+    jsonStatus.textContent = msg;
+    jsonStatus.className = 'status-text ' + (type === 'error' ? 'status-error' : '');
+  }
+
+  // 从服务器加载配置
+  async function loadConfigFromServer() {
+    setVisualStatus('正在从服务器加载配置…');
+    setJsonStatus('');
     try {
       const res = await fetch('/api/nav');
       if (!res.ok) throw new Error('HTTP ' + res.status);
       const json = await res.json();
-      configText.value = JSON.stringify(json, null, 2);
-      setStatus('加载完成。');
+      if (!Array.isArray(json)) throw new Error('返回数据不是数组。');
+      navData = json;
+      syncJsonFromData();
+      renderVisualList();
+      setVisualStatus('加载完成。');
     } catch (e) {
       console.error(e);
-      setStatus('加载失败：' + e.message, 'error');
+      setVisualStatus('加载失败：' + e.message, 'error');
     }
   }
 
-  async function saveConfig() {
-    const key = adminKeyInput.value.trim();
-    if (!key) {
-      setStatus('请先输入后台密钥。', 'error');
-      return;
-    }
-    const text = configText.value;
-    let parsed;
+  // 把 navData → 写入 JSON 文本框
+  function syncJsonFromData() {
+    configText.value = JSON.stringify(navData, null, 2);
+  }
+
+  // 把 JSON 文本 → 解析到 navData
+  function syncDataFromJson(showMessage = true) {
     try {
-      parsed = JSON.parse(text);
-      if (!Array.isArray(parsed)) {
-        throw new Error('根节点必须是数组（Array）。');
-      }
+      const parsed = JSON.parse(configText.value || '[]');
+      if (!Array.isArray(parsed)) throw new Error('根节点必须是数组。');
+      navData = parsed;
+      renderVisualList();
+      if (showMessage) setJsonStatus('JSON 已解析并同步到可视化列表。');
+      return true;
     } catch (e) {
-      setStatus('JSON 解析失败：' + e.message, 'error');
+      console.error(e);
+      if (showMessage) setJsonStatus('JSON 解析失败：' + e.message, 'error');
+      return false;
+    }
+  }
+
+  // 渲染可视化列表
+  function renderVisualList() {
+    if (!Array.isArray(navData) || navData.length === 0) {
+      visualListBody.innerHTML = '<div class="status-text">当前没有任何导航数据，请在左侧添加。</div>';
       return;
     }
 
-    setStatus('正在保存配置…');
+    visualListBody.innerHTML = '';
+
+    navData.forEach((section, sIndex) => {
+      const sectionEl = document.createElement('div');
+      sectionEl.className = 'visual-section';
+
+      const headerEl = document.createElement('div');
+      headerEl.className = 'visual-section-header';
+      headerEl.innerHTML = `
+        <div class="visual-section-title">
+          <span>${section.title || '未命名分组'}</span>
+          ${section.subtitle ? `<small>${section.subtitle}</small>` : ''}
+        </div>
+        <div class="visual-section-tools">
+          <button type="button" data-action="delete-section" data-sindex="${sIndex}">删除分组</button>
+        </div>
+      `;
+
+      const listEl = document.createElement('div');
+      listEl.className = 'visual-links';
+
+      (section.links || []).forEach((link, lIndex) => {
+        const row = document.createElement('div');
+        row.className = 'visual-link-row';
+        row.innerHTML = `
+          <div class="visual-link-main">
+            <div class="visual-link-title">
+              <span class="icon">${link.icon || '⌘'}</span>
+              <span>${link.title || '未命名站点'}</span>
+            </div>
+            <div class="visual-link-url">${link.url || ''}</div>
+          </div>
+          <button type="button" class="visual-link-delete" data-action="delete-link" data-sindex="${sIndex}" data-lindex="${lIndex}">
+            🗑
+          </button>
+        `;
+        listEl.appendChild(row);
+      });
+
+      sectionEl.appendChild(headerEl);
+      sectionEl.appendChild(listEl);
+      visualListBody.appendChild(sectionEl);
+    });
+  }
+
+  // 处理删除点击
+  visualListBody.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-action]');
+    if (!btn) return;
+    const action = btn.getAttribute('data-action');
+    const sIndex = Number(btn.getAttribute('data-sindex'));
+
+    if (action === 'delete-link') {
+      const lIndex = Number(btn.getAttribute('data-lindex'));
+      if (navData[sIndex] && navData[sIndex].links) {
+        navData[sIndex].links.splice(lIndex, 1);
+        if (navData[sIndex].links.length === 0) {
+          // 如果该分组已经空了，就一起删除
+          navData.splice(sIndex, 1);
+        }
+        syncJsonFromData();
+        renderVisualList();
+        setVisualStatus('已删除该站点。');
+      }
+    }
+
+    if (action === 'delete-section') {
+      if (navData[sIndex]) {
+        navData.splice(sIndex, 1);
+        syncJsonFromData();
+        renderVisualList();
+        setVisualStatus('已删除该分组及其下所有站点。');
+      }
+    }
+  });
+
+  // “添加到列表” 按钮
+  addLinkBtn.addEventListener('click', () => {
+    const sectionName = (sectionNameInput.value || '').trim() || '常用入口';
+    const siteName = (siteNameInput.value || '').trim();
+    const siteUrl = (siteUrlInput.value || '').trim();
+    const siteDesc = (siteDescInput.value || '').trim();
+    const siteIcon = (siteIconInput.value || '').trim();
+
+    if (!siteName || !siteUrl) {
+      setVisualStatus('网站名称和网站地址不能为空。', 'error');
+      return;
+    }
+
+    // 如果 JSON 文本被手动改过，先解析一遍
+    if (!syncDataFromJson(false)) {
+      setVisualStatus('当前 JSON 格式有问题，请先在高级模式中修正。', 'error');
+      return;
+    }
+
+    // 查找是否已经存在这个分组
+    let section = navData.find(s => (s.title || '').trim() === sectionName);
+    if (!section) {
+      section = {
+        title: sectionName,
+        subtitle: '',
+        links: []
+      };
+      navData.push(section);
+    }
+
+    // 加入新链接
+    section.links.push({
+      title: siteName,
+      url: siteUrl,
+      icon: siteIcon || guessIconByUrl(siteUrl, siteName),
+      desc: siteDesc,
+      tags: ''
+    });
+
+    // 同步到 JSON & 列表
+    syncJsonFromData();
+    renderVisualList();
+
+    // 清空站点输入框（分组名保留，方便连续加）
+    siteNameInput.value = '';
+    siteUrlInput.value = '';
+    siteDescInput.value = '';
+    siteIconInput.value = '';
+
+    setVisualStatus('已添加站点到分组「' + sectionName + '」。');
+  });
+
+  // 简单自动选一个图标
+  function guessIconByUrl(url, name) {
+    const u = (url || '').toLowerCase();
+    const n = (name || '').toLowerCase();
+    if (u.includes('music.apple') || n.includes('music')) return '🎵';
+    if (u.includes('github')) return '🐙';
+    if (u.includes('notion')) return '📘';
+    if (u.includes('google')) return '🔍';
+    if (u.includes('cloudflare')) return '⚡';
+    if (u.includes('shy521') || n.includes('加速')) return '☁️';
+    return '⌘';
+  }
+
+  // 从可视化/JSON 保存到服务器
+  async function saveConfigToServer() {
+    const key = adminKeyInput.value.trim();
+    if (!key) {
+      setVisualStatus('请先在上方输入后台密钥。', 'error');
+      return;
+    }
+
+    // 先保证 navData 与 JSON 一致
+    if (!syncDataFromJson(true)) {
+      setVisualStatus('当前 JSON 无法解析，请先修正。', 'error');
+      return;
+    }
+
+    setVisualStatus('正在保存配置…');
+    setJsonStatus('');
+
     try {
       const res = await fetch('/api/nav', {
         method: 'POST',
@@ -111,35 +355,38 @@
           'Content-Type': 'application/json',
           'X-Admin-Key': key
         },
-        body: JSON.stringify(parsed)
+        body: JSON.stringify(navData)
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok || !data.ok) {
         throw new Error(data.error || '保存失败（HTTP ' + res.status + '）');
       }
-      setStatus('保存成功！请刷新首页查看效果。');
+      setVisualStatus('保存成功！请刷新首页查看效果。');
     } catch (e) {
       console.error(e);
-      setStatus('保存失败：' + e.message, 'error');
+      setVisualStatus('保存失败：' + e.message, 'error');
     }
   }
 
+  // 格式化 JSON
   function formatConfig() {
     try {
       const obj = JSON.parse(configText.value);
       configText.value = JSON.stringify(obj, null, 2);
-      setStatus('格式化完成。');
+      syncDataFromJson(false);
+      setJsonStatus('格式化完成。');
     } catch (e) {
-      setStatus('格式化失败：当前内容不是合法 JSON。', 'error');
+      setJsonStatus('格式化失败：当前内容不是合法 JSON。', 'error');
     }
   }
 
-  loadBtn.addEventListener('click', loadConfig);
-  saveBtn.addEventListener('click', saveConfig);
+  // 事件绑定
+  reloadBtn.addEventListener('click', loadConfigFromServer);
+  saveVisualBtn.addEventListener('click', saveConfigToServer);
   formatBtn.addEventListener('click', formatConfig);
 
-  // 初次进入自动加载一次
-  loadConfig();
+  // 初始加载
+  loadConfigFromServer();
 </script>
 </body>
 </html>
