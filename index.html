@@ -21,11 +21,20 @@
 
   <div class="header-actions">
     <button id="themeToggle" class="btn btn-ghost">浅色 / 深色</button>
-    <a href="/admin.html" class="btn btn-primary">管理后台</a>
+    <!-- ❌ 管理后台按钮已移除 -->
   </div>
 </header>
 
 <main class="app-main">
+
+  <!-- 🔥 访问信息卡片：IP + 地理位置 + 当前时间 -->
+  <section class="visit-card">
+    <div class="visit-title">你的访问信息</div>
+    <div id="visit-ip" class="visit-line">IP：获取中…</div>
+    <div id="visit-geo" class="visit-line">位置：获取中…</div>
+    <div id="visit-time" class="visit-line">时间：获取中…</div>
+  </section>
+
   <section class="search-section">
     <input id="searchInput" type="search" placeholder="搜索站点或关键字…" autocomplete="off" />
   </section>
@@ -42,6 +51,9 @@
   <div>© <span id="year"></span> 可云导航 · 构建在 Cloudflare Pages & Workers</div>
 </footer>
 
+<!-- ============================= -->
+<!-- 🔥 脚本区域：访问信息 + 导航加载 -->
+<!-- ============================= -->
 <script>
   const navContainer = document.getElementById('navContainer');
   const searchInput = document.getElementById('searchInput');
@@ -52,7 +64,7 @@
 
   yearEl.textContent = new Date().getFullYear();
 
-  // 主题切换
+  // ----------- 主题切换 -----------
   (function initTheme() {
     const saved = localStorage.getItem('keyun-theme');
     if (saved === 'dark') {
@@ -67,6 +79,37 @@
     localStorage.setItem('keyun-theme', isDark ? 'dark' : 'light');
   });
 
+  // ------------------------------
+  // 🔥 访问信息模块：IP / 地理位置 / 时间
+  // ------------------------------
+  async function loadVisitInfo() {
+    try {
+      const res = await fetch("https://ipapi.co/json/");
+      const d = await res.json();
+
+      document.getElementById("visit-ip").innerText = "IP：" + d.ip;
+      document.getElementById("visit-geo").innerText =
+        "位置：" + d.country_name + " · " + d.region + " · " + d.city;
+
+    } catch (e) {
+      document.getElementById("visit-ip").innerText = "IP：获取失败";
+      document.getElementById("visit-geo").innerText = "位置：获取失败";
+    }
+  }
+
+  function updateVisitTime() {
+    document.getElementById("visit-time").innerText =
+      "时间：" + new Date().toLocaleString();
+  }
+
+  // 初始化访问信息
+  loadVisitInfo();
+  updateVisitTime();
+  setInterval(updateVisitTime, 1000);
+
+  // ------------------------------
+  // 🔥 导航 JSON 加载
+  // ------------------------------
   let navData = [];
 
   async function loadNav() {
@@ -182,5 +225,6 @@
 
   loadNav();
 </script>
+
 </body>
 </html>
