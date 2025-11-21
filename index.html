@@ -5,222 +5,242 @@
   <meta name="viewport"
         content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
   <title>可云导航 · KEYUN HUB</title>
-  <link rel="stylesheet" href="./style.css" />
+
+  <!-- 简单样式，无外链 -->
+  <style>
+    body {
+      margin: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f4f4f7;
+      color: #333;
+    }
+    .dark {
+      background: #111;
+      color: #ddd;
+    }
+
+    /* 顶部背景 */
+    .header {
+      padding: 40px 20px 20px;
+      text-align: center;
+    }
+    .title {
+      font-size: 28px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .sub {
+      opacity: 0.7;
+    }
+
+    /* 访问信息横向排版 */
+    .visit-info {
+      margin: 0 auto;
+      padding: 10px 18px;
+      margin-bottom: 18px;
+      display: flex;
+      gap: 22px;
+      justify-content: center;
+      align-items: center;
+
+      background: rgba(255, 255, 255, 0.6);
+      backdrop-filter: blur(14px);
+      border-radius: 14px;
+      box-shadow: 0 5px 18px rgba(0,0,0,0.08);
+      width: fit-content;
+    }
+    .dark .visit-info {
+      background: rgba(0, 0, 0, 0.45);
+    }
+
+    .visit-divider {
+      width: 1px;
+      height: 15px;
+      background: rgba(0,0,0,0.15);
+    }
+    .dark .visit-divider {
+      background: rgba(255,255,255,0.25);
+    }
+
+    /* 搜索栏 */
+    .search-box {
+      width: 90%;
+      max-width: 680px;
+      margin: 0 auto 20px;
+    }
+    .search-box input {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 14px;
+      border: none;
+      outline: none;
+      font-size: 16px;
+      background: rgba(255,255,255,0.8);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+    }
+
+    /* 导航分组 */
+    .section {
+      width: 90%;
+      max-width: 980px;
+      background: rgba(255,255,255,0.8);
+      margin: 20px auto;
+      padding: 20px 25px;
+      border-radius: 18px;
+      box-shadow: 0 6px 20px rgba(0,0,0,0.08);
+    }
+    .dark .section {
+      background: rgba(0,0,0,0.35);
+    }
+
+    .section-title {
+      font-size: 20px;
+      font-weight: 600;
+      margin-bottom: 6px;
+    }
+    .section-sub {
+      font-size: 14px;
+      opacity: 0.7;
+      margin-bottom: 14px;
+    }
+
+    /* 卡片 */
+    .card-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+    }
+    .card {
+      display: flex;
+      gap: 12px;
+      padding: 14px 16px;
+      background: white;
+      border-radius: 14px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.06);
+      text-decoration: none;
+      color: inherit;
+    }
+    .dark .card {
+      background: rgba(255,255,255,0.08);
+    }
+
+    .icon {
+      font-size: 22px;
+    }
+    .card-title {
+      font-weight: 600;
+      margin-bottom: 2px;
+    }
+    .card-desc {
+      font-size: 12px;
+      opacity: 0.7;
+    }
+  </style>
 </head>
 
-<body class="app app-light">
-<div class="app-bg"></div>
+<body>
 
-<!-- 顶部品牌栏 -->
-<header class="app-header">
-  <div class="brand">
-    <div class="brand-icon"></div>
-    <div class="brand-text">
-      <div class="brand-title">可云 · Personal Hub</div>
-      <div class="brand-sub">快速进入你最常用的世界。</div>
-    </div>
-  </div>
+<div class="header">
+  <div class="title">可云 · Personal Hub</div>
+  <div class="sub">快速进入你最常用的世界。</div>
+</div>
 
-  <div class="header-actions">
-    <button id="themeToggle" class="btn btn-ghost">浅色 / 深色</button>
-  </div>
-</header>
+<!-- 横向访问信息条 -->
+<section class="visit-info">
+  <div id="ipInfo">IP: 加载中…</div>
+  <div class="visit-divider"></div>
+  <div id="locInfo">位置: 加载中…</div>
+  <div class="visit-divider"></div>
+  <div id="timeInfo">时间: 加载中…</div>
+</section>
 
-<main class="app-main">
+<!-- 搜索栏 -->
+<div class="search-box">
+  <input id="searchInput" placeholder="搜索站点或关键字…" />
+</div>
 
-  <!-- 访问信息模块：横向排列 + 打字机动画 -->
-  <section class="visit-info">
-    <div class="visit-item" id="ipInfo">🌐 IP: 加载中…</div>
-    <div class="visit-item" id="locInfo">📍 位置: 加载中…</div>
-    <div class="visit-item" id="timeInfo">🕒 时间: 加载中…</div>
-  </section>
-
-  <!-- 搜索栏 -->
-  <section class="search-section">
-    <input id="searchInput" type="search" placeholder="搜索站点或关键字…" autocomplete="off" />
-  </section>
-
-  <!-- 导航容器 -->
-  <section id="navContainer" class="section-list"></section>
-
-  <section id="loading" class="status-text">正在加载导航配置…</section>
-  <section id="error" class="status-text status-error" hidden>加载失败，请稍后重试。</section>
-
-</main>
-
-<footer class="app-footer">
-  <div>© <span id="year"></span> 可云导航 · 构建在 Cloudflare Pages + Workers</div>
-</footer>
+<!-- 导航容器 -->
+<div id="navContainer"></div>
 
 <script>
-  const navContainer = document.getElementById('navContainer');
-  const searchInput  = document.getElementById('searchInput');
-  const loadingEl    = document.getElementById('loading');
-  const errorEl      = document.getElementById('error');
-  const yearEl       = document.getElementById('year');
-  const themeToggle  = document.getElementById('themeToggle');
+/* ------------------ 访问信息 ------------------ */
+async function loadVisitInfo() {
+  try {
+    const r = await fetch("https://ipapi.co/json/");
+    const d = await r.json();
 
-  yearEl.textContent = new Date().getFullYear();
+    document.getElementById("ipInfo").textContent =
+      "IP: " + d.ip;
 
-  /* 初始化主题 */
-  (function initTheme() {
-    const saved = localStorage.getItem('keyun-theme');
-    if (saved === 'dark') {
-      document.body.classList.add('app-dark');
-      document.body.classList.remove('app-light');
-    }
-  })();
+    document.getElementById("locInfo").textContent =
+      "位置: " + d.country_name + " · " + d.region + " · " + d.city;
 
-  themeToggle.addEventListener('click', () => {
-    const isDark = document.body.classList.toggle('app-dark');
-    document.body.classList.toggle('app-light', !isDark);
-    localStorage.setItem('keyun-theme', isDark ? 'dark' : 'light');
-  });
-
-  /* ---------------------- 访问信息获取 ---------------------- */
-  async function loadVisitInfo() {
-    try {
-      const ipRes = await fetch("https://ipapi.co/json/");
-      const data = await ipRes.json();
-
-      document.getElementById("ipInfo").textContent =
-              `🌐 IP: ${data.ip}`;
-
-      document.getElementById("locInfo").textContent =
-              `📍 ${data.country_name} · ${data.region} · ${data.city}`;
-
-      const timeEl = document.getElementById("timeInfo");
-      const now = new Date().toLocaleString();
-      timeEl.classList.remove("typewriter");
-      void timeEl.offsetWidth; // 强制重绘，确保动画重复执行
-      timeEl.classList.add("typewriter");
-      timeEl.textContent = `🕒 时间: ${now}`;
-    } catch (e) {
-      console.error("访问信息加载失败", e);
-    }
+    document.getElementById("timeInfo").textContent =
+      "时间: " + new Date().toLocaleString();
+  } catch (e) {
+    console.log(e);
   }
+}
+loadVisitInfo();
+setInterval(loadVisitInfo, 10000);
 
-  loadVisitInfo();
-  setInterval(loadVisitInfo, 30000);
+/* ------------------ 导航数据 ------------------ */
+let navData = [];
 
+/* 你的 Cloudflare Workers API */
+async function loadNav() {
+  const r = await fetch("/api/nav");
+  navData = await r.json();
+  renderNav(navData);
+}
+loadNav();
 
-  /* ---------------------- 导航配置加载 ---------------------- */
-  let navData = [];
+/* ------------------ 搜索 ------------------ */
+document.getElementById("searchInput").oninput = () => {
+  renderNav(navData);
+};
 
-  async function loadNav() {
-    try {
-      const res = await fetch('/api/nav');
-      if (!res.ok) throw new Error('HTTP ' + res.status);
+/* ------------------ 渲染导航 ------------------ */
+function renderNav(list) {
+  const kw = document.getElementById("searchInput").value.toLowerCase();
+  const box = document.getElementById("navContainer");
+  box.innerHTML = "";
 
-      navData = await res.json();
-      renderNav(navData);
-      loadingEl.hidden = true;
+  list.forEach(sec => {
+    const filtered = sec.links.filter(l =>
+      (l.title + l.desc + l.tags).toLowerCase().includes(kw)
+    );
+    if (filtered.length === 0) return;
 
-    } catch (e) {
-      console.error(e);
-      loadingEl.hidden = true;
-      errorEl.hidden = false;
-    }
-  }
+    const s = document.createElement("div");
+    s.className = "section";
 
-  function renderNav(data) {
-    navContainer.innerHTML = '';
-    if (!Array.isArray(data) || data.length === 0) {
-      navContainer.innerHTML =
-              '<div class="status-text">暂无导航数据，请在后台添加。</div>';
-      return;
-    }
+    s.innerHTML = `
+      <div class="section-title">${sec.title}</div>
+      <div class="section-sub">${sec.subtitle}</div>
+      <div class="card-grid"></div>
+    `;
+    const grid = s.querySelector(".card-grid");
 
-    const keyword = searchInput.value.trim().toLowerCase();
+    filtered.forEach(l => {
+      const c = document.createElement("a");
+      c.className = "card";
+      c.href = l.url;
+      c.target = "_blank";
 
-    data.forEach(section => {
-      const filtered = (section.links || []).filter(link => {
-        if (!keyword) return true;
-        const text = (link.title || '') + ' ' +
-                     (link.desc || '')  + ' ' +
-                     (link.tags || '');
-        return text.toLowerCase().includes(keyword);
-      });
-
-      if (filtered.length === 0) return;
-
-      const sec = document.createElement('section');
-      sec.className = 'nav-section';
-
-      const header = document.createElement('div');
-      header.className = 'nav-section-header';
-
-      const titleBox = document.createElement('div');
-      const title = document.createElement('h2');
-      title.className = 'nav-section-title';
-      title.textContent = section.title || '未命名分组';
-
-      const subtitle = document.createElement('p');
-      subtitle.className = 'nav-section-subtitle';
-      subtitle.textContent = section.subtitle || '';
-
-      titleBox.appendChild(title);
-      if (section.subtitle) titleBox.appendChild(subtitle);
-
-      header.appendChild(titleBox);
-      sec.appendChild(header);
-
-      const grid = document.createElement('div');
-      grid.className = 'card-grid';
-
-      filtered.forEach(link => {
-        const card = document.createElement('a');
-        card.className = 'nav-card';
-        card.href = link.url || '#';
-        card.target = "_blank";
-
-        const icon = document.createElement('div');
-        icon.className = 'nav-card-icon';
-        icon.textContent = link.icon || '⌘';
-
-        const content = document.createElement('div');
-        content.className = 'nav-card-content';
-
-        const row = document.createElement('div');
-        row.className = 'nav-card-title-row';
-
-        const t = document.createElement('div');
-        t.className = 'nav-card-title';
-        t.textContent = link.title || '未命名站点';
-
-        const badge = document.createElement('div');
-        badge.className = 'nav-card-badge';
-        badge.textContent = link.badge || '';
-
-        row.appendChild(t);
-        if (link.badge) row.appendChild(badge);
-
-        const desc = document.createElement('div');
-        desc.className = 'nav-card-desc';
-        desc.textContent = link.desc || '';
-
-        const meta = document.createElement('div');
-        meta.className = 'nav-card-meta';
-        meta.textContent = link.tags || '';
-
-        content.appendChild(row);
-        if (link.desc) content.appendChild(desc);
-        if (link.tags) content.appendChild(meta);
-
-        card.appendChild(icon);
-        card.appendChild(content);
-
-        grid.appendChild(card);
-      });
-
-      sec.appendChild(grid);
-      navContainer.appendChild(sec);
+      c.innerHTML = `
+        <div class="icon">${l.icon}</div>
+        <div>
+          <div class="card-title">${l.title}</div>
+          <div class="card-desc">${l.desc}</div>
+        </div>
+      `;
+      grid.appendChild(c);
     });
-  }
 
-  searchInput.addEventListener('input', () => renderNav(navData));
-
-  loadNav();
+    box.appendChild(s);
+  });
+}
 </script>
 
 </body>
