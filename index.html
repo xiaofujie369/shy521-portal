@@ -29,14 +29,7 @@
 
 <main class="app-main">
 
-  <!-- 访问信息模块：横向排列 -->
-  <section class="visit-info">
-    <div class="visit-item" id="ipInfo">🌐 IP: 加载中…</div>
-    <div class="visit-item" id="locInfo">📍 位置: 加载中…</div>
-    <div class="visit-item" id="timeInfo">🕒 时间: 加载中…</div>
-  </section>
-
-  <!-- 搜索栏 -->
+  <!-- 搜索栏（保留） -->
   <section class="search-section">
     <input id="searchInput" type="search" placeholder="搜索站点或关键字…" autocomplete="off" />
   </section>
@@ -77,40 +70,6 @@
     document.body.classList.toggle('app-light', !isDark);
     localStorage.setItem('keyun-theme', isDark ? 'dark' : 'light');
   });
-
-  /* ---------------------- 访问信息获取（新版） ---------------------- */
-  async function loadVisitInfo() {
-    try {
-      // 1. 获取 IP（非常稳定）
-      const ipRes = await fetch("https://api.ipify.org?format=json");
-      const ipData = await ipRes.json();
-      const ip = ipData.ip;
-      document.getElementById("ipInfo").textContent = `🌐 IP: ${ip}`;
-
-      // 2. 根据 IP 获取地理位置（比 ipapi 更稳定）
-      const locRes = await fetch(`https://ipapi.co/${ip}/json/`);
-      const loc = await locRes.json();
-
-      const locationStr = loc.country_name && loc.city
-          ? `${loc.country_name} · ${loc.region} · ${loc.city}`
-          : "未知";
-
-      document.getElementById("locInfo").textContent =
-              `📍 位置: ${locationStr}`;
-
-      // 3. 显示当前时间
-      const now = new Date().toLocaleString();
-      document.getElementById("timeInfo").textContent =
-              `🕒 时间: ${now}`;
-
-    } catch (e) {
-      console.error("访问信息加载失败", e);
-      document.getElementById("locInfo").textContent = "📍 位置: 无法获取";
-    }
-  }
-
-  loadVisitInfo();
-  setInterval(loadVisitInfo, 30000);
 
 
   /* ---------------------- 导航配置加载 ---------------------- */
