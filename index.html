@@ -4,12 +4,14 @@
   <meta charset="UTF-8" />
   <meta name="viewport"
         content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-  <title>我的导航 · KEYUN</title>
+  <title>可云导航 · KEYUN HUB</title>
   <link rel="stylesheet" href="./style.css" />
 </head>
+
 <body class="app app-light">
 <div class="app-bg"></div>
 
+<!-- 顶部品牌栏 -->
 <header class="app-header">
   <div class="brand">
     <div class="brand-icon"></div>
@@ -21,50 +23,46 @@
 
   <div class="header-actions">
     <button id="themeToggle" class="btn btn-ghost">浅色 / 深色</button>
-    <!-- ❌ 管理后台按钮已移除 -->
   </div>
 </header>
 
 <main class="app-main">
 
-  <!-- 🔥 访问信息卡片：IP + 地理位置 + 当前时间 -->
-  <section class="visit-card">
-    <div class="visit-title">你的访问信息</div>
-    <div id="visit-ip" class="visit-line">IP：获取中…</div>
-    <div id="visit-geo" class="visit-line">位置：获取中…</div>
-    <div id="visit-time" class="visit-line">时间：获取中…</div>
+  <!-- 访问信息模块：横向排列 + 打字机动画 -->
+  <section class="visit-info">
+    <div class="visit-item" id="ipInfo">🌐 IP: 加载中…</div>
+    <div class="visit-item" id="locInfo">📍 位置: 加载中…</div>
+    <div class="visit-item" id="timeInfo">🕒 时间: 加载中…</div>
   </section>
 
+  <!-- 搜索栏 -->
   <section class="search-section">
     <input id="searchInput" type="search" placeholder="搜索站点或关键字…" autocomplete="off" />
   </section>
 
-  <section id="navContainer" class="section-list">
-    <!-- JS 动态渲染 -->
-  </section>
+  <!-- 导航容器 -->
+  <section id="navContainer" class="section-list"></section>
 
   <section id="loading" class="status-text">正在加载导航配置…</section>
   <section id="error" class="status-text status-error" hidden>加载失败，请稍后重试。</section>
+
 </main>
 
 <footer class="app-footer">
-  <div>© <span id="year"></span> 可云导航 · 构建在 Cloudflare Pages & Workers</div>
+  <div>© <span id="year"></span> 可云导航 · 构建在 Cloudflare Pages + Workers</div>
 </footer>
 
-<!-- ============================= -->
-<!-- 🔥 脚本区域：访问信息 + 导航加载 -->
-<!-- ============================= -->
 <script>
   const navContainer = document.getElementById('navContainer');
-  const searchInput = document.getElementById('searchInput');
-  const loadingEl = document.getElementById('loading');
-  const errorEl = document.getElementById('error');
-  const yearEl = document.getElementById('year');
-  const themeToggle = document.getElementById('themeToggle');
+  const searchInput  = document.getElementById('searchInput');
+  const loadingEl    = document.getElementById('loading');
+  const errorEl      = document.getElementById('error');
+  const yearEl       = document.getElementById('year');
+  const themeToggle  = document.getElementById('themeToggle');
 
   yearEl.textContent = new Date().getFullYear();
 
-  // ----------- 主题切换 -----------
+  /* 初始化主题 */
   (function initTheme() {
     const saved = localStorage.getItem('keyun-theme');
     if (saved === 'dark') {
@@ -79,46 +77,45 @@
     localStorage.setItem('keyun-theme', isDark ? 'dark' : 'light');
   });
 
-  // ------------------------------
-  // 🔥 访问信息模块：IP / 地理位置 / 时间
-  // ------------------------------
+  /* ---------------------- 访问信息获取 ---------------------- */
   async function loadVisitInfo() {
     try {
-      const res = await fetch("https://ipapi.co/json/");
-      const d = await res.json();
+      const ipRes = await fetch("https://ipapi.co/json/");
+      const data = await ipRes.json();
 
-      document.getElementById("visit-ip").innerText = "IP：" + d.ip;
-      document.getElementById("visit-geo").innerText =
-        "位置：" + d.country_name + " · " + d.region + " · " + d.city;
+      document.getElementById("ipInfo").textContent =
+              `🌐 IP: ${data.ip}`;
 
+      document.getElementById("locInfo").textContent =
+              `📍 ${data.country_name} · ${data.region} · ${data.city}`;
+
+      const timeEl = document.getElementById("timeInfo");
+      const now = new Date().toLocaleString();
+      timeEl.classList.remove("typewriter");
+      void timeEl.offsetWidth; // 强制重绘，确保动画重复执行
+      timeEl.classList.add("typewriter");
+      timeEl.textContent = `🕒 时间: ${now}`;
     } catch (e) {
-      document.getElementById("visit-ip").innerText = "IP：获取失败";
-      document.getElementById("visit-geo").innerText = "位置：获取失败";
+      console.error("访问信息加载失败", e);
     }
   }
 
-  function updateVisitTime() {
-    document.getElementById("visit-time").innerText =
-      "时间：" + new Date().toLocaleString();
-  }
-
-  // 初始化访问信息
   loadVisitInfo();
-  updateVisitTime();
-  setInterval(updateVisitTime, 1000);
+  setInterval(loadVisitInfo, 30000);
 
-  // ------------------------------
-  // 🔥 导航 JSON 加载
-  // ------------------------------
+
+  /* ---------------------- 导航配置加载 ---------------------- */
   let navData = [];
 
   async function loadNav() {
     try {
       const res = await fetch('/api/nav');
       if (!res.ok) throw new Error('HTTP ' + res.status);
+
       navData = await res.json();
       renderNav(navData);
       loadingEl.hidden = true;
+
     } catch (e) {
       console.error(e);
       loadingEl.hidden = true;
@@ -129,51 +126,53 @@
   function renderNav(data) {
     navContainer.innerHTML = '';
     if (!Array.isArray(data) || data.length === 0) {
-      navContainer.innerHTML = '<div class="status-text">暂无导航数据，请在后台添加。</div>';
+      navContainer.innerHTML =
+              '<div class="status-text">暂无导航数据，请在后台添加。</div>';
       return;
     }
 
     const keyword = searchInput.value.trim().toLowerCase();
 
     data.forEach(section => {
-      const filteredLinks = (section.links || []).filter(link => {
+      const filtered = (section.links || []).filter(link => {
         if (!keyword) return true;
-        const text = (link.title || '') + ' ' + (link.desc || '') + ' ' + (link.tags || '');
+        const text = (link.title || '') + ' ' +
+                     (link.desc || '')  + ' ' +
+                     (link.tags || '');
         return text.toLowerCase().includes(keyword);
       });
 
-      if (filteredLinks.length === 0) return;
+      if (filtered.length === 0) return;
 
-      const secEl = document.createElement('section');
-      secEl.className = 'nav-section';
+      const sec = document.createElement('section');
+      sec.className = 'nav-section';
 
-      const headerEl = document.createElement('div');
-      headerEl.className = 'nav-section-header';
+      const header = document.createElement('div');
+      header.className = 'nav-section-header';
 
-      const titleWrap = document.createElement('div');
-      const titleEl = document.createElement('h2');
-      titleEl.className = 'nav-section-title';
-      titleEl.textContent = section.title || '未命名分组';
+      const titleBox = document.createElement('div');
+      const title = document.createElement('h2');
+      title.className = 'nav-section-title';
+      title.textContent = section.title || '未命名分组';
 
-      const subtitleEl = document.createElement('p');
-      subtitleEl.className = 'nav-section-subtitle';
-      subtitleEl.textContent = section.subtitle || '';
+      const subtitle = document.createElement('p');
+      subtitle.className = 'nav-section-subtitle';
+      subtitle.textContent = section.subtitle || '';
 
-      titleWrap.appendChild(titleEl);
-      if (section.subtitle) titleWrap.appendChild(subtitleEl);
+      titleBox.appendChild(title);
+      if (section.subtitle) titleBox.appendChild(subtitle);
 
-      headerEl.appendChild(titleWrap);
-      secEl.appendChild(headerEl);
+      header.appendChild(titleBox);
+      sec.appendChild(header);
 
-      const gridEl = document.createElement('div');
-      gridEl.className = 'card-grid';
+      const grid = document.createElement('div');
+      grid.className = 'card-grid';
 
-      filteredLinks.forEach(link => {
+      filtered.forEach(link => {
         const card = document.createElement('a');
         card.className = 'nav-card';
         card.href = link.url || '#';
-        card.target = '_blank';
-        card.rel = 'noopener noreferrer';
+        card.target = "_blank";
 
         const icon = document.createElement('div');
         icon.className = 'nav-card-icon';
@@ -182,19 +181,19 @@
         const content = document.createElement('div');
         content.className = 'nav-card-content';
 
-        const titleRow = document.createElement('div');
-        titleRow.className = 'nav-card-title-row';
+        const row = document.createElement('div');
+        row.className = 'nav-card-title-row';
 
-        const title = document.createElement('div');
-        title.className = 'nav-card-title';
-        title.textContent = link.title || '未命名站点';
+        const t = document.createElement('div');
+        t.className = 'nav-card-title';
+        t.textContent = link.title || '未命名站点';
 
         const badge = document.createElement('div');
         badge.className = 'nav-card-badge';
         badge.textContent = link.badge || '';
 
-        titleRow.appendChild(title);
-        if (link.badge) titleRow.appendChild(badge);
+        row.appendChild(t);
+        if (link.badge) row.appendChild(badge);
 
         const desc = document.createElement('div');
         desc.className = 'nav-card-desc';
@@ -204,24 +203,22 @@
         meta.className = 'nav-card-meta';
         meta.textContent = link.tags || '';
 
-        content.appendChild(titleRow);
+        content.appendChild(row);
         if (link.desc) content.appendChild(desc);
         if (link.tags) content.appendChild(meta);
 
         card.appendChild(icon);
         card.appendChild(content);
 
-        gridEl.appendChild(card);
+        grid.appendChild(card);
       });
 
-      secEl.appendChild(gridEl);
-      navContainer.appendChild(secEl);
+      sec.appendChild(grid);
+      navContainer.appendChild(sec);
     });
   }
 
-  searchInput.addEventListener('input', () => {
-    renderNav(navData);
-  });
+  searchInput.addEventListener('input', () => renderNav(navData));
 
   loadNav();
 </script>
