@@ -1,0 +1,12 @@
+name = "keyun-portal"
+compatibility_date = "2025-11-21"
+
+[env.production]
+# 这里的 kv_namespaces id 需要你在 Cloudflare 中创建 KV 后填进去
+kv_namespaces = [
+  { binding = "NAV_KV", id = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx" }
+]
+
+[vars]
+# 部署时在 CF 后台中设置更安全，这里可以不填
+# ADMIN_KEY = "change-me"
